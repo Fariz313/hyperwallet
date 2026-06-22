@@ -45,6 +45,7 @@ function marketInputToDoc(input: MarketSnapshotInput) {
     name: input.name,
     mid: input.mid,
     mark: input.mark,
+    prevDayPrice: input.prevDayPrice,
     dayNtlVlm: input.dayNtlVlm,
     funding: input.funding,
     openInterest: input.openInterest,
@@ -111,17 +112,41 @@ export class MarketsService {
   }
 
   async listMarkets(
-    options: { search?: string } = {},
+    options: { search?: string; sort?: string } = {},
   ): Promise<MarketListItem[]> {
     const query = options.search
       ? { symbol: { $regex: normalizeSymbol(options.search), $options: "i" } }
       : {};
+
+    let sortStage: Record<string, 1 | -1> = {
+      isFavorite: -1,
+      dayNtlVlm: -1,
+      symbol: 1,
+    };
+
+    switch (options.sort) {
+      case "volume":
+        sortStage = { isFavorite: -1, dayNtlVlm: -1, symbol: 1 };
+        break;
+      case "funding":
+        sortStage = { isFavorite: -1, funding: 1, symbol: 1 };
+        break;
+      case "oi":
+        sortStage = { isFavorite: -1, openInterest: -1, symbol: 1 };
+        break;
+      case "gainers":
+        // prevDayPrice-based sorting is done client-side since it's computed
+        sortStage = { isFavorite: -1, dayNtlVlm: -1, symbol: 1 };
+        break;
+      case "losers":
+        sortStage = { isFavorite: -1, dayNtlVlm: -1, symbol: 1 };
+        break;
+      default:
+        sortStage = { isFavorite: -1, dayNtlVlm: -1, symbol: 1 };
+    }
+
     const markets = await MarketSnapshot.find(query)
-      .sort({
-        isFavorite: -1,
-        dayNtlVlm: -1,
-        symbol: 1,
-      })
+      .sort(sortStage)
       .lean();
 
     return markets.map(mapMarketSnapshotDocToListItem);

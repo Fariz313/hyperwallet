@@ -1,13 +1,17 @@
 {
   "name": "Hyperwallet",
   "short_name": "Hyperwallet",
-  "description": "Read-only real-time Hyperliquid wallet tracker PWA.",
+  "description": "Read-only real-time Hyperliquid wallet tracker and market scanner PWA.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "orientation": "portrait-primary",
+  "categories": ["finance", "cryptocurrency", "utilities"],
+  "prefer_related_applications": false,
+  "screenshots": [],
   "icons": [
     {
       "src": "/icons/icon-192.png",

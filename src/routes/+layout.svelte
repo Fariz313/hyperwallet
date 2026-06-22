@@ -5,6 +5,8 @@
   import '../app.css';
   import { registerServiceWorker } from '$lib/pwa/registerServiceWorker';
 
+  let { children }: { children?: import('svelte').Snippet } = $props();
+
   onMount(() => {
     if (!browser) return;
 
@@ -22,10 +24,10 @@
     { href: '/settings', label: 'Settings' }
   ];
 
-  let navOpen = false;
-  let deferredPrompt: any = null;
-  let showInstallAlert = false;
-  let iosInstallFallback = false;
+  let navOpen = $state(false);
+  let deferredPrompt: any = $state(null);
+  let showInstallAlert = $state(false);
+  let iosInstallFallback = $state(false);
 
   function isIosDevice() {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -93,7 +95,7 @@
       </span>
     </a>
 
-    <button class:open={navOpen} class="menu-button" type="button" aria-label="Toggle navigation" aria-expanded={navOpen} on:click={toggleNav}>
+    <button class:open={navOpen} class="menu-button" type="button" aria-label="Toggle navigation" aria-expanded={navOpen} onclick={toggleNav}>
       <span></span>
       <span></span>
       <span></span>
@@ -104,7 +106,7 @@
         <a
           class:active={$page.url.pathname === item.href || $page.url.pathname.startsWith(`${item.href}/`)}
           href={item.href}
-          on:click={closeNav}
+          onclick={closeNav}
         >
           {item.label}
         </a>
@@ -124,11 +126,11 @@
       </div>
 
       <div class="install-alert-actions">
-        <button class="button secondary" type="button" on:click={dismissInstallAlert}>
+        <button class="button secondary" type="button" onclick={dismissInstallAlert}>
           {iosInstallFallback ? 'Dismiss' : 'Later'}
         </button>
         {#if deferredPrompt}
-          <button class="button" type="button" on:click={installApp}>
+          <button class="button" type="button" onclick={installApp}>
             Install
           </button>
         {/if}
@@ -136,14 +138,13 @@
     </section>
   {/if}
 
-  <div class:nav-overlay={navOpen} on:click={closeNav} aria-hidden={!navOpen}></div>
+  <div class:nav-overlay={navOpen} onclick={closeNav} aria-hidden={!navOpen}></div>
 
   <main class="content">
-    <slot />
+    {@render children?.()}
   </main>
 
   <footer class="footer">
-    Hyperwallet Phase 1 skeleton · SSR PWA · no private keys
+    Hyperwallet Phase 5 · Wallet tracking · Market scanner · Background sync · SSE live updates · Read-only
   </footer>
 </div>
-

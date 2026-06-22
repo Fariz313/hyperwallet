@@ -34,6 +34,7 @@ export interface MarketSnapshotInput {
   name?: string;
   mid?: number;
   mark?: number;
+  prevDayPrice?: number;
   dayNtlVlm?: number;
   funding?: number;
   openInterest?: number;
@@ -49,6 +50,8 @@ export interface MarketListItem {
   name?: string;
   mid?: number;
   mark?: number;
+  prevDayPrice?: number;
+  change24h?: number;
   dayNtlVlm?: number;
   funding?: number;
   openInterest?: number;
@@ -91,6 +94,7 @@ export function mapMetaAndAssetCtxsToMarketInputs(
         name: asset.name,
         mid: toNumber(context?.["mid"] ?? context?.["mark"]),
         mark: toNumber(context?.["mark"]),
+        prevDayPrice: toNumber(context?.prevDayPrice),
         dayNtlVlm: toNumber(context?.dayNtlVlm),
         funding: toNumber(context?.funding),
         openInterest: toNumber(context?.openInterest),
@@ -111,6 +115,7 @@ export function mapMarketSnapshotDocToListItem(doc: {
   name?: string;
   mid?: number;
   mark?: number;
+  prevDayPrice?: number;
   dayNtlVlm?: number;
   funding?: number;
   openInterest?: number;
@@ -124,6 +129,11 @@ export function mapMarketSnapshotDocToListItem(doc: {
     name: doc.name,
     mid: doc.mid,
     mark: doc.mark,
+    prevDayPrice: doc.prevDayPrice,
+    change24h:
+      doc.mid != null && doc.prevDayPrice != null && doc.prevDayPrice > 0
+        ? (doc.mid - doc.prevDayPrice) / doc.prevDayPrice
+        : undefined,
     dayNtlVlm: doc.dayNtlVlm,
     funding: doc.funding,
     openInterest: doc.openInterest,

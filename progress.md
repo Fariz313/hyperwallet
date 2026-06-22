@@ -225,3 +225,205 @@ Completed the Phase 3 public Hyperliquid API client layer without changing the m
 - The Phase 3 client is a reusable data access layer only; wallet CRUD, background sync workers, and cached DB writes remain for Phase 4.
 - The client uses public Hyperliquid API calls only and does not require private keys.
 - Parent Git repository still excludes `hyperwallet/`; Hyperwallet has its own nested Git repository.
+
+## 2026-06-22
+
+### Phase 4 - Wallet Tracking
+
+Completed the Phase 4 wallet tracking layer with real-time background sync and live updates, without changing the main app.
+
+#### Completed
+
+- **Background tracker worker** ([`src/server/workers/trackerWorker.ts`](src/server/workers/trackerWorker.ts:1)):
+  - Periodic sync of all active tracked wallets from Hyperliquid public API.
+  - Default 30-second interval between sync rounds.
+  - Runs immediately on startup, then on the interval.
+  - Tracks stats: total runs, errors, last run duration.
+  - Timer is "unref'd" so it doesn't prevent process exit.
+  - Integrated with the existing [`walletEvents`](src/server/events/walletEvents.ts:1) event bus for live event emission.
+
+- **SSE realtime endpoint** ([`src/routes/api/realtime/+server.ts`](src/routes/api/realtime/+server.ts:1)):
+  - Server-Sent Events endpoint for live wallet sync events.
+  - Sends `wallet:synced` and `wallet:error` events as they happen.
+  - Sends latest event immediately on connection.
+  - Keep-alive pings every 15 seconds to prevent proxy timeouts.
+  - Auto-closes after 5 minutes of inactivity (browser reconnects automatically).
+  - Cleans up on client disconnect via `request.signal`.
+
+- **Updated dashboard** ([`src/routes/+page.svelte`](src/routes/+page.svelte:1)):
+  - Shows live wallet metrics: tracked count, active count, synced count, error count.
+  - SSE connection status indicator (connected/disconnected).
+  - Real-time wallet list with sync status badges, last-relative-time display.
+  - Sync-all button, refresh button, add-wallet link.
+  - Empty state with CTA to add the first wallet.
+  - Quick-link cards to wallets, markets, and settings pages.
+  - Phase 4 badge header with worker description.
+
+- **Tracker worker integration** ([`src/hooks.server.ts`](src/hooks.server.ts:1)):
+  - DB connection and tracker worker startup on first server request.
+  - Graceful shutdown on SIGINT/SIGTERM: stops worker and disconnects DB.
+  - Worker interval set to 30 seconds.
+
+- **Updated layout footer** ([`src/routes/+layout.svelte`](src/routes/+layout.svelte:146)):
+  - Footer now reads "Phase 4 · Wallet tracking · Background sync · SSE live updates · Read-only"
+
+- **Existing Phase 4 infrastructure** (already built in prior sessions):
+  - [`src/server/services/walletSync.ts`](src/server/services/walletSync.ts:1): Full wallet sync service with snapshot, position, fill, and order caching.
+  - [`src/server/services/wallets.ts`](src/server/services/wallets.ts:1): Wallet CRUD operations (create, list, update, delete).
+  - [`src/server/services/walletDetails.ts`](src/server/services/walletDetails.ts:1): Wallet detail loader combining all cached data.
+  - [`src/server/events/walletEvents.ts`](src/server/events/walletEvents.ts:1): Event bus for wallet sync events.
+  - [`src/routes/api/wallets/+server.ts`](src/routes/api/wallets/+server.ts:1): GET/POST API for wallets.
+  - [`src/routes/api/wallets/[address]/+server.ts`](src/routes/api/wallets/[address]/+server.ts:1): GET/PATCH/DELETE API for individual wallets.
+  - [`src/routes/api/wallets/[address]/sync/+server.ts`](src/routes/api/wallets/[address]/sync/+server.ts:1): POST API to sync a single wallet.
+  - [`src/routes/api/wallets/sync/+server.ts`](src/routes/api/wallets/sync/+server.ts:1): POST API to sync all active wallets.
+  - [`src/routes/api/wallets/events/+server.ts`](src/routes/api/wallets/events/+server.ts:1): Long-polling event endpoint.
+  - [`src/routes/wallets/+page.svelte`](src/routes/wallets/+page.svelte:1): Wallet management UI with add/sync/delete.
+  - [`src/routes/wallets/[address]/+page.svelte`](src/routes/wallets/[address]/+page.svelte:1): Wallet detail page with positions, fills, orders.
+  - [`src/routes/wallets/[address]/proxy+page.ts`](src/routes/wallets/[address]/proxy+page.ts:1): SSR page data loader for wallet detail.
+  - [`scripts/sync-wallets.ts`](scripts/sync-wallets.ts:1): CLI script for manual wallet sync.
+
+#### New Files Added
+
+- [`src/server/workers/trackerWorker.ts`](src/server/workers/trackerWorker.ts:1)
+- [`src/routes/api/realtime/+server.ts`](src/routes/api/realtime/+server.ts:1)
+
+#### Verification
+
+- Ran `npm run format`: Prettier formatted all new and modified files.
+- Ran `npm run check`: SvelteKit sync and `svelte-check` completed with 0 errors and 0 warnings.
+- Ran the direct production build with a larger heap:
+  - `node --max-old-space-size=8192 node_modules/vite/bin/vite.js build`
+  - Build completed successfully.
+
+#### Notes
+
+- No main-app code was changed.
+- Hyperwallet remains a standalone nested project.
+- The background tracker worker runs in the same Node.js process as the SvelteKit server.
+- SSE endpoint provides true real-time updates; the existing long-polling endpoint remains as a fallback.
+- The tracker worker handles per-wallet errors gracefully, updating syncStatus per wallet without failing the entire round.
+- Alerts, leaderboard, and notification phases remain for future development.
+
+### Phase 5 - Market Scanner
+
+Completed the Phase 5 market scanner with full browse, search, favorite, sort, and 24h price change display, without changing the main app.
+
+#### Completed
+
+- **24h price change support** ([`src/lib/hyperliquid/markets.ts`](src/lib/hyperliquid/markets.ts:1)):
+  - Added `prevDayPrice` to `MarketSnapshotInput` and `MarketListItem` interfaces.
+  - Added computed `change24h` field (percent change) in `mapMarketSnapshotDocToListItem()`.
+  - Updated `mapMetaAndAssetCtxsToMarketInputs` to pass through `prevDayPrice` from the Hyperliquid asset context.
+
+- **MarketSnapshot model update** ([`src/server/models/MarketSnapshot.ts`](src/server/models/MarketSnapshot.ts:1)):
+  - Added `prevDayPrice: Number` field to the schema and document interface.
+
+- **Market sync service update** ([`src/server/services/markets.ts`](src/server/services/markets.ts:1)):
+  - `marketInputToDoc()` now includes `prevDayPrice`.
+  - `listMarkets()` now accepts a `sort` parameter supporting: `volume`, `funding`, `oi`, `gainers`, `losers`.
+
+- **Market list API update** ([`src/routes/api/markets/+server.ts`](src/routes/api/markets/+server.ts:1)):
+  - Added `sort` query parameter to GET endpoint.
+  - Added PATCH endpoint for favorite toggle (`symbol`, `isFavorite` body).
+
+- **Full market scanner UI** ([`src/routes/markets/+page.svelte`](src/routes/markets/+page.svelte:1)):
+  - Complete rewrite with rich scanner functionality:
+    - Browseable table with mid price, 24h change (color-coded green/red), 24h volume, funding rate, open interest.
+    - **Favorite toggle**: Clickable star icon per row with optimistic UI update and PATCH API call.
+    - **Sort controls**: Pill-style buttons for 24h Volume (default), Top Gainers, Top Losers, Funding Rate, Open Interest.
+    - **Search**: Debounced text input filtering by symbol.
+    - **Auto-refresh**: Markets list refreshes every 30 seconds automatically.
+    - **Sync button**: Manual market metadata sync from Hyperliquid.
+    - **Responsive**: Mobile view shows only asset name and favorite star; desktop shows full data columns.
+    - **Empty state** with CTA to sync markets when no data exists.
+
+- **Updated dashboard** ([`src/routes/+page.svelte`](src/routes/+page.svelte:1)):
+  - New market metrics section with cards for: markets tracked count, favorites count, total 24h volume (sum), last sync timestamp.
+  - Hero badge updated to "Phase 5 · Wallet tracking · Market scanner".
+  - Market scanner quick-link card updated with richer description.
+
+- **Updated layout footer** ([`src/routes/+layout.svelte`](src/routes/+layout.svelte:146)):
+  - Footer now reads "Phase 5 · Wallet tracking · Market scanner · Background sync · SSE live updates · Read-only"
+
+#### Files Modified
+
+- [`src/server/models/MarketSnapshot.ts`](src/server/models/MarketSnapshot.ts:1): Added `prevDayPrice` field.
+- [`src/lib/hyperliquid/markets.ts`](src/lib/hyperliquid/markets.ts:1): Added `prevDayPrice`, `change24h` fields; updated mapping functions.
+- [`src/server/services/markets.ts`](src/server/services/markets.ts:1): Added `prevDayPrice` to doc mapping, `sort` param to `listMarkets()`.
+- [`src/routes/api/markets/+server.ts`](src/routes/api/markets/+server.ts:1): Added `sort` query param, PATCH favorite endpoint.
+- [`src/routes/markets/+page.svelte`](src/routes/markets/+page.svelte:1): Full market scanner rewrite.
+- [`src/routes/+page.svelte`](src/routes/+page.svelte:1): Added market metrics section.
+- [`src/routes/+layout.svelte`](src/routes/+layout.svelte:1): Footer updated to Phase 5.
+
+#### Verification
+
+- Ran `npm run format`: Prettier formatted all modified files.
+- Ran `npm run check`: SvelteKit sync and `svelte-check` completed with 0 errors and 0 warnings.
+- Ran the direct production build with a larger heap:
+  - `node --max-old-space-size=8192 node_modules/vite/bin/vite.js build`
+  - Build completed successfully.
+
+#### Notes
+
+- No main-app code was changed.
+- Hyperwallet remains a standalone nested project.
+- Market `change24h` is computed client-side from `mid` and `prevDayPrice` to avoid storing volatile computed fields.
+- Gainers/losers sorting is done client-side since `change24h` is not stored in MongoDB.
+- Favorite state persists in MongoDB via the `isFavorite` boolean on `MarketSnapshot`.
+- Alerts, leaderboard, and notification phases remain for future development.
+- Parent Git repository still excludes `hyperwallet/`; Hyperwallet has its own nested Git repository.
+
+### PWA Fixes — iOS Support, Proper Caching Strategy, Svelte 5 Runes Mode
+
+Fixed the Progressive Web App setup with proper caching strategies, iOS PWA support, service worker update detection, and Svelte 5 runes mode compatibility.
+
+#### Changes Made
+
+- **iOS PWA meta tags** ([`src/app.html`](src/app.html:1)):
+  - Added `apple-mobile-web-app-capable` (standalone mode on iOS).
+  - Added `apple-mobile-web-app-status-bar-style: black-translucent` (edge-to-edge display).
+  - Added `apple-mobile-web-app-title` (Hyperwallet).
+  - Added `apple-touch-icon` link to 192×192 PNG.
+  - Added `viewport-fit=cover` to viewport meta for notch support.
+
+- **Apple touch icon** ([`static/icons/apple-touch-icon.png`](static/icons/apple-touch-icon.png:1)):
+  - Created 192×192 PNG copy for iOS home screen icon.
+
+- **Service worker rewrite** ([`static/sw.js`](static/sw.js:1)):
+  - **Three named caches**: `hyperwallet-v1` (navigation/shell), `hyperwallet-static-v1` (icons/manifest), `hyperwallet-api-v1` (API responses).
+  - **Network-first strategy** for API (`/api/`) and navigation (`text/html`) requests: fetch from network, fall back to cache on failure.
+  - **Cache-first strategy** for static assets (icons, manifest, fonts): serve from cache, update cache in background.
+  - **Offline fallback**: navigation requests that fail network and cache return the cached root page.
+  - **Push notification handlers**: preserved `push` event listener with notification display logic.
+  - **Cache cleanup**: `activate` event deletes old cache versions.
+  - **Install event**: pre-caches shell and static assets on first install.
+
+- **Manifest update** ([`static/manifest.webmanifest`](static/manifest.webmanifest:1)):
+  - Added `"categories": ["finance", "cryptocurrency", "utilities"]` field.
+
+- **Registration with update detection** ([`src/lib/pwa/registerServiceWorker.ts`](src/lib/pwa/registerServiceWorker.ts:1)):
+  - Enhanced `registerServiceWorker()` with `updatefound` event listener to detect new service worker versions.
+  - Added `controllerchange` event listener to auto-reload the page when a new SW takes over.
+  - Logs registration success/failure and update events to console.
+
+- **Svelte 5 runes mode** ([`src/routes/+layout.svelte`](src/routes/+layout.svelte:1)):
+  - Changed reactive variables from `let` to `$state(...)` (e.g., `navOpen`, `deferredPrompt`, `showInstallAlert`, `iosInstallFallback`).
+  - Changed `let { children }` to `let { children }: { children?: import('svelte').Snippet } = $props()` for typed slot content.
+  - Changed `<slot />` to `{@render children?.()}`.
+  - Changed all `on:click` event handlers to `onclick` (Svelte 5 syntax).
+  - Install alert UI (beforeinstallprompt capture, iOS fallback, dismiss) preserved in runes mode.
+
+#### Verification
+
+- Ran `npm run check`: SvelteKit sync and `svelte-check` completed with 0 errors and 0 warnings.
+- Ran production build with larger heap:
+  - `node --max-old-space-size=8192 node_modules/vite/bin/vite.js build`
+  - Build completed successfully.
+
+#### Notes
+
+- No main-app code was changed.
+- Hyperwallet remains a standalone nested project.
+- The Svelte 5 runes migration was required to fix mixed event handler syntax (`on:click` is not valid in Svelte 5 runes mode with `<svelte:options runes={true} />`).
+- The service worker now uses explicit cache names to avoid collisions with other apps on the same origin.
+- iOS PWA support requires the `apple-touch-icon` PNG and the four iOS-specific `<meta>` tags — manifest alone is insufficient for iOS.

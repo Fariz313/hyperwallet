@@ -6,6 +6,7 @@ export interface MarketSnapshotDoc extends mongoose.Document {
   name?: string;
   mid?: number;
   mark?: number;
+  prevDayPrice?: number;
   dayNtlVlm?: number;
   funding?: number;
   openInterest?: number;
@@ -28,6 +29,7 @@ const marketSnapshotSchema = new Schema<MarketSnapshotDoc>(
     name: String,
     mid: Number,
     mark: Number,
+    prevDayPrice: Number,
     dayNtlVlm: Number,
     funding: Number,
     openInterest: Number,

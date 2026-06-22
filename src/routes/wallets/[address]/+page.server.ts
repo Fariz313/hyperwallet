@@ -1,8 +1,6 @@
 import { getWalletDetail } from "../../../server/services/walletDetails";
-import type { PageLoad } from "./$types";
+import type { PageServerLoad } from "./$types";
 
-export const ssr = true;
-
-export const load: PageLoad = async ({ params }) => ({
+export const load: PageServerLoad = async ({ params }) => ({
   wallet: await getWalletDetail(params.address),
 });
