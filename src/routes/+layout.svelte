@@ -145,6 +145,6 @@
   </main>
 
   <footer class="footer">
-    Hyperwallet Phase 5 · Wallet tracking · Market scanner · Background sync · SSE live updates · Read-only
+    Hyperwallet Phase 6 · Wallet tracking · Market scanner · Alerts & Notifications · Background sync · SSE live updates · Read-only
   </footer>
 </div>

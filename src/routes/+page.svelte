@@ -189,7 +189,7 @@
 </svelte:head>
 
 <section class="hero dashboard-hero">
-  <span class="badge success">Phase 5 · Wallet tracking · Market scanner</span>
+  <span class="badge success">Phase 6 · Wallet tracking · Market scanner · Alerts & Notifications</span>
   <h1>Hyperwallet</h1>
   <p>
     Real-time Hyperliquid wallet tracking and market scanner without private keys.

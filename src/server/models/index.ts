@@ -1,4 +1,5 @@
 export * from "./MarketSnapshot";
+export * from "./NotificationHistory";
 export * from "./NotificationSubscription";
 export * from "./PriceAlert";
 export * from "./TrackedWallet";

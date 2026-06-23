@@ -283,8 +283,8 @@
   </p>
 </section>
 
-<section class="grid">
-  <article class="card half">
+<section class="grid wallets-grid">
+  <article class="card">
     <h2>Add wallet</h2>
     <form class="stacked-form" on:submit={submit}>
       <label>
@@ -316,7 +316,7 @@
     {/if}
   </article>
 
-  <article class="card half">
+  <article class="card">
     <div class="section-heading">
       <div>
         <h2>Tracked wallets</h2>
@@ -370,3 +370,15 @@
     {/if}
   </article>
 </section>
+
+<style>
+  .wallets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 700px) {
+    .wallets-grid {
+      grid-template-columns: 1fr 1.5fr;
+    }
+  }
+</style>

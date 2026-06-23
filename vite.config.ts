@@ -5,10 +5,8 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [basicSsl(), sveltekit()],
   server: {
-    https: true,
     host: "0.0.0.0",
     port: 5173,
     strictPort: true,
-    allowedHosts: true,
   },
 });

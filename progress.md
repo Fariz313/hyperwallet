@@ -427,3 +427,95 @@ Fixed the Progressive Web App setup with proper caching strategies, iOS PWA supp
 - The Svelte 5 runes migration was required to fix mixed event handler syntax (`on:click` is not valid in Svelte 5 runes mode with `<svelte:options runes={true} />`).
 - The service worker now uses explicit cache names to avoid collisions with other apps on the same origin.
 - iOS PWA support requires the `apple-touch-icon` PNG and the four iOS-specific `<meta>` tags — manifest alone is insufficient for iOS.
+
+### Phase 6 — Alerts and Notifications
+
+Implemented full price alert and wallet activity alert system with CRUD APIs, in-memory evaluation engine, VAPID-based push notifications, notification history persistence, and notification center UI.
+
+#### Changes Made
+
+- **Notification history model** ([`src/server/models/NotificationHistory.ts`](src/server/models/NotificationHistory.ts)):
+  - Mongoose schema with `title`, `body`, `type` (price_alert|wallet_activity|system|test), `url`, `ref`, `isRead`, `createdAt`.
+  - Indexes on `createdAt`, `type+createdAt`, `isRead`.
+
+- **Alert service** ([`src/server/services/alerts.ts`](src/server/services/alerts.ts)):
+  - **Price Alert CRUD**: `listPriceAlerts()`, `createPriceAlert(input)`, `deletePriceAlert(id)`, `togglePriceAlert(id, isActive)`.
+  - **Wallet Activity Alert CRUD**: `listWalletActivityAlerts()`, `createWalletActivityAlert(input)`, `deleteWalletActivityAlert(id)`, `toggleWalletActivityAlert(id, isActive)`.
+  - **`evaluatePriceAlerts()`**: Fetches active price alerts, gets latest `MarketSnapshot` for each unique symbol, compares mid price against above/below threshold. Returns `{ triggered, sent, details }`.
+  - **`evaluateWalletActivityAlerts()`**: Fetches active wallet activity alerts, gets latest `WalletSnapshot` per wallet, checks for new positions (with optional coin filter), fill count threshold, and liquidation risk from `raw.positions`.
+  - Exported `alertsService` singleton.
+
+- **Push notification service** ([`src/server/services/pushNotifications.ts`](src/server/services/pushNotifications.ts)):
+  - `configurePush()` — Sets VAPID details via `web-push`.
+  - `subscribe(subscription)` / `unsubscribe(endpoint)` — Manage push subscriptions in `NotificationSubscription` collection.
+  - `sendPushNotification(payload)` — Sends to all subscribers via web-push, persists to `NotificationHistory`, auto-cleans expired/invalid subscriptions (HTTP 404/410).
+  - `sendAlertNotification(payload)` — Wrapper for alert-triggered push + history.
+  - History queries: `getNotificationHistory(limit, offset)`, `markNotificationRead(id)`, `markAllNotificationsRead()`, `getUnreadNotificationCount()`.
+  - VAPID key: `getVapidPublicKey()`, `isPushConfigured()`.
+
+- **Alert worker** ([`src/server/workers/alertWorker.ts`](src/server/workers/alertWorker.ts)):
+  - `AlertWorker` class (pattern-matched to existing `TrackerWorker`).
+  - Timer-based execution every 60s (configurable via `intervalMs`).
+  - `runOnce()` — Evaluates both price and wallet alerts, sends bundled push notifications per type.
+  - Stats tracking: `totalRuns`, `totalErrors`, `totalTriggered`, `totalSent`.
+
+- **Alert API endpoints**:
+  - [`src/routes/api/alerts/+server.ts`](src/routes/api/alerts/+server.ts) — `GET` (list alerts, optional `?type=price|activity`), `POST` (create price alert).
+  - [`src/routes/api/alerts/price/+server.ts`](src/routes/api/alerts/price/+server.ts) — `POST` (create price alert with validation).
+  - [`src/routes/api/alerts/activity/+server.ts`](src/routes/api/alerts/activity/+server.ts) — `POST` (create wallet activity alert with validation).
+  - [`src/routes/api/alerts/[id]/+server.ts`](src/routes/api/alerts/[id]/+server.ts) — `DELETE` and `PATCH` (toggle active state).
+
+- **Notification API endpoints**:
+  - [`src/routes/api/notifications/+server.ts`](src/routes/api/notifications/+server.ts) — `GET` (paginated history with unread count), `PATCH` (mark single or all read).
+  - [`src/routes/api/notifications/vapid-key/+server.ts`](src/routes/api/notifications/vapid-key/+server.ts) — `GET` (return VAPID public key).
+  - [`src/routes/api/notifications/subscribe/+server.ts`](src/routes/api/notifications/subscribe/+server.ts) — `POST` (subscribe), `DELETE` (unsubscribe).
+
+- **Alerts page** ([`src/routes/alerts/+page.svelte`](src/routes/alerts/+page.svelte)):
+  - Metric cards showing price alert count, wallet alert count, active counts.
+  - Price alert creation form (symbol, condition above/below, price input).
+  - Wallet activity alert creation form (wallet address, alert type dropdown, optional coin/threshold).
+  - Alert lists with toggle (Active/Paused) and Delete buttons.
+  - Empty states, loading spinners, error messages.
+  - Phase 6 badge.
+
+- **Notifications page** ([`src/routes/notifications/+page.svelte`](src/routes/notifications/+page.svelte)):
+  - Push subscription status card (subscribe/unsubscribe buttons).
+  - Unread count badge and mark-all-read button.
+  - Notification inbox with type icons, read/unread styling (left border highlight).
+  - Auto-subscribe flow: fetches VAPID key, requests `Notification.permission`, creates `PushSubscription`.
+
+- **Settings page** ([`src/routes/settings/+page.svelte`](src/routes/settings/+page.svelte)):
+  - Push notification toggle with subscription management.
+  - Links to alerts and notifications pages.
+  - Sync settings info.
+
+- **Hooks update** ([`src/hooks.server.ts`](src/hooks.server.ts)):
+  - `setupPushConfig()` reads `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_EMAIL` from env.
+  - AlertWorker startup with `{ intervalMs: 60_000 }`.
+  - `alertWorker.stop()` added to SIGINT/SIGTERM cleanup.
+
+- **Layout and pages** ([`src/routes/+layout.svelte`](src/routes/+layout.svelte), [`src/routes/+page.svelte`](src/routes/+page.svelte)):
+  - Footer changed to "Phase 6 · Wallet tracking · Market scanner · Alerts & Notifications".
+  - Dashboard hero badge updated to "Phase 6 · Wallet tracking · Market scanner · Alerts & Notifications".
+
+- **Environment config** ([`.env.example`](.env.example)):
+  - Added `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_EMAIL` placeholders with generation instructions (`npx web-push generate-vapid-keys`).
+
+- **Dependencies** ([`package.json`](package.json)):
+  - Added `web-push` runtime dependency.
+  - Added `@types/web-push` dev dependency.
+
+- **Vite config** ([`vite.config.ts`](vite.config.ts)):
+  - Removed `server.https: true` and `allowedHosts: true` (conflicts with basicSsl plugin which handles HTTPS via self-signed certs).
+
+#### Verification
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run build`: Production build completed successfully (SSR + client).
+
+#### Notes
+
+- VAPID keys must be generated using `npx web-push generate-vapid-keys` and set in `.env` before push notifications will function.
+- The alerts evaluation engine runs server-side in the background every 60 seconds via `AlertWorker`.
+- Expired or invalid push subscriptions are automatically cleaned up during the push send attempt.
+- No changes were made to the main app (`src/` outside `hyperwallet/`).
