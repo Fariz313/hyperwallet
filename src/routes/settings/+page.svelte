@@ -149,7 +149,7 @@
   <article class="card">
     <div class="card-icon">🔒</div>
     <h2>Privacy</h2>
-    <p>Hyperwallet is designed as read-only wallet analytics. It never requests private keys.</p>
+    <p>Hyperwallet never requests private keys. All wallet data is cached from the public Hyperliquid API.</p>
   </article>
 </section>
 

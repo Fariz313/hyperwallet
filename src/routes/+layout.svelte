@@ -91,7 +91,7 @@
       <span class="brand-mark" aria-hidden="true">H</span>
       <span class="brand-text">
         <strong>Hyperwallet</strong>
-        <small>Read-only Hyperliquid tracker</small>
+        <small>Hyperliquid tracker</small>
       </span>
     </a>
 
@@ -121,7 +121,7 @@
         <p>
           {iosInstallFallback
             ? 'Open Safari, tap the Share button, then choose Add to Home Screen.'
-            : 'Install this PWA for faster read-only wallet tracking access from your Home Screen.'}
+            : 'Install this PWA for faster wallet tracking access from your Home Screen.'}
         </p>
       </div>
 
@@ -145,6 +145,6 @@
   </main>
 
   <footer class="footer">
-    Hyperwallet Phase 6 · Wallet tracking · Market scanner · Alerts & Notifications · Background sync · SSE live updates · Read-only
+    Hyperwallet Phase 6 · Wallet tracking · Market scanner · Alerts & Notifications · Background sync · SSE live updates
   </footer>
 </div>
